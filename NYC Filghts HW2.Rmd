@@ -1,0 +1,219 @@
+---
+title: "NYC Flights HW2"
+author: "Simon Verghese, Michael Geraci, Jagjeet Wani, Riley Maher, Tanner Burke"
+date: "2/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Homework 2
+
+## Importing Data
+
+```{r}
+library(ggplot2)
+library(nycflights13)
+nyc = nycflights13::flights
+head(nyc)
+```
+
+## Structure of Data Set
+
+```{r}
+str(nyc)
+```
+
+## Making Necessary Factors
+
+```{r}
+nyc$carrier = as.factor(nyc$carrier)
+nyc$month = as.factor(nyc$month)
+nyc$day = as.factor(nyc$day)
+```
+
+## Basic Exploration
+
+```{r}
+# Finding the number of carriers
+num_carriers <- nlevels(nyc$carrier)
+num_carriers
+
+# Finding the number of flights with airline with code 00
+oo_flights <- nrow(nyc[nyc$carrier == "OO",])
+oo_flights
+
+# Finding the shortest flight out of any NYC airport
+min_distance <- min(nyc$distance)
+min_distance
+
+# Finding the number of United Airlines flights on Jan 12th 2013
+UA_jan_12_flights <- nrow(nyc[nyc$month == 1 & nyc$day == 12 & nyc$carrier == "UA",])
+UA_jan_12_flights
+```
+
+There are `r num_carriers` different carriers that flew planes in 2013. There are `r oo_flights` different flights with the flight code "OO". The shortest flight out of any NYC airport only flew `r min_distance` miles. On January 12th, `r UA_jan_12_flights` United Airlines flights ocurred.
+
+## Arrival Delay
+
+```{r}
+# Finding the average and median flight delay in Jan
+flight_delay_jan <- nyc[nyc$month == 1, ]
+
+mean_delay <- round(mean(flight_delay_jan$arr_delay, na.rm = TRUE), 2)
+median_delay <- median(flight_delay_jan$arr_delay, na.rm = TRUE)
+
+summary(flight_delay_jan$arr_delay, rm.na = TRUE)
+mean_delay
+median_delay
+```
+
+The average delay for all ariports and all airlines combined in January 2013 was `r mean_delay` minutes and the median time was `r median_delay` minutes. From these two numbers and from the summary, we can see that there is a wide distribution between the third and fourth quartile, demonstrating that the data is skewed towards larger delays. This is also shown by the mean value being greater than the median. From the median, we can also infer that less than 50% of the flights didn't have a delay.
+
+## Airline Performance
+
+```{r}
+# Sorting average delay by each airline
+avg_arr_delay_airline <- sort(tapply(nyc$arr_delay, nyc$carrier, mean, na.rm = TRUE),
+                              decreasing = TRUE)
+avg_arr_delay_airline
+```
+
+```{r}
+# Bar plot showing average delay by airline
+barplot(avg_arr_delay_airline,
+        xlab = "Airlines",
+        ylab = "Arrival Delay",
+        main = "Arrival Delays for Airlines",
+        col = "blue")
+```
+
+```{r}
+# Airline with lowest average arrival delay
+lowest_delay <- names(avg_arr_delay_airline[avg_arr_delay_airline == min(avg_arr_delay_airline)])
+
+# Airline with highest average arrival delay
+highest_delay <- names(avg_arr_delay_airline[avg_arr_delay_airline == max(avg_arr_delay_airline)])
+
+# Airlines with negative delays
+negative_delay <- names(avg_arr_delay_airline[avg_arr_delay_airline < 1])
+
+lowest_delay
+highest_delay
+negative_delay
+```
+
+From the bar plot, we can see that the airline with the lowest average arrival delay was `r lowest_delay` and the airline with the highest delay was `r highest_delay`. We can also see that the airlines that actually made up time in the air on average were `r negative_delay[1]`, `r negative_delay[2]`, and `r negative_delay[3]`.
+
+## Air Gain
+
+```{r, echo = TRUE}
+# Creates a new column called airgain
+nyc$airgain = nyc$dep_delay - nyc$arr_delay
+head(nyc)
+```
+
+```{r}
+# Historgam of airgain data
+airgain_hist <- hist(nyc$airgain,
+                     main = "Distribution of Air Gains Across Flights",
+                     xlab = "Air Gain (minutes)",
+                     breaks = 5,
+                     col = "red")
+
+airgain_summary <- summary(nyc$airgain)
+
+airgain_summary
+airgain_hist
+```
+
+From the histogram, we can see that most flights gain between 0 and 50 minutes of time in the air.
+
+```{r}
+# Finding the average air gains for each airline 
+avg_airgain_airline <- sort(tapply(nyc$airgain,
+                                  nyc$carrier,
+                                  mean,
+                                  na.rm = TRUE),
+                           decreasing = TRUE)
+
+airgain_bar <- barplot(avg_airgain_airline,
+                        names.arg = levels(nyc$carrier),
+                        xlab = "Airlines",
+                        ylab = "Average Air Gain",
+                        main = "Average Air Gain for Airlines",
+                        col = "Green")
+
+avg_airgain_airline
+airgain_bar
+```
+
+On average they get 5.66 minutes of air gain.
+
+The airlines that do the best job are `r avg_airgain_airline[1]`, `r avg_airgain_airline[2]`, and `r avg_airgain_airline[3]`. Those that do the worst are `r avg_airgain_airline[14]`, `r avg_airgain_airline[15]`, and `r avg_airgain_airline[16]`, all of which have negative air gain values and lose time in the air.
+
+
+```{r}
+# Average air gains for each airport
+avg_airgain_airport <- sort(tapply(nyc$airgain,
+                                   nyc$origin,
+                                   mean,
+                                   na.rm = TRUE),
+                            decreasing = TRUE)
+avg_airgain_airport
+```
+
+`r names(avg_airgain_airport[avg_airgain_airport == max(avg_airgain_airport)])` is the airport with the best air gain overall. 
+
+```{r}
+#aggregate table for air gain based on origin and month
+agg_airgain_by_airport <- aggregate(airgain ~ origin + month,
+                                    data = nyc,
+                                    mean)
+agg_airgain_by_airport
+
+#barplot for the aggregate table
+barplot(agg_airgain_by_airport$airgain,
+        names.arg = paste(agg_airgain_by_airport$origin,
+                          agg_airgain_by_airport$month),
+        xlab = "Airports",
+        ylab = "Average Air Gain",
+        main = "Average Air Gain for Airports",
+        col = c("Red", "Green", "Blue"))
+
+legend("topright",
+       legend = c("EWR", "JFK", "LGA"), 
+       fill = c('red','green','blue'))
+```
+
+## Hard Bits
+
+```{r}
+nyc$timeofday <- "Morning"
+nyc$timeofday <- ifelse(nyc$hour > 4 & nyc$hour <= 12, "Morning",
+                        ifelse(nyc$hour > 12 & nyc$hour <= 16, "Afternoon",
+                               ifelse(nyc$hour > 16 & nyc$hour <= 20, "Evening", "Night")))
+
+delay_times <- sort(tapply(nyc$arr_delay,
+                           nyc$timeofday,
+                           mean,
+                           na.rm = TRUE),
+                    decreasing = FALSE)
+delay_times
+```
+
+The best time of day to travel with minimal arrival delay is the `r names(delay_times[delay_times == min(delay_times)])`.
+
+```{r}
+plot(nyc$distance,
+     nyc$airgain,
+     xlab="Distance (Miles)",
+     ylab="Airgain (Minutes)",
+     main="Distance vs. Airgain of Flights")
+
+ggplot(nyc, aes(x=distance, y=airgain, color=carrier)) + geom_point()
+```
+
+I think a scatter plot is the best graph to demonstrate how the air gain of a flight changes by distance. I made two scatter plots, one has a legend showing which carriers were which flights and one that does not have a legend. I did that because earlier we saw that air gain differed by carrier. It's a bit hard to tell which carriers have the best/worst air gain from the scatter plot, but we can tell from both that as the distance goes up, air gain also trends up, meaning more time is gained on longer flights.
